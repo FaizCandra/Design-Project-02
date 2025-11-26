@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring Durian Realtime</title>
+    <!-- Library Paho MQTT (Wajib untuk Web MQTT) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; text-align: center; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: auto; }
+        h1 { color: #2c3e50; margin-bottom: 5px; }
+        .status { font-size: 0.9em; color: #888; margin-bottom: 20px; }
+        
+        /* Kartu Data */
+        .card-grid { display: flex; gap: 15px; justify-content: center; margin-bottom: 20px; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); flex: 1; min-width: 80px; }
+        .card h3 { margin: 0; font-size: 0.9em; color: #666; text-transform: uppercase; }
+        .value { font-size: 2em; font-weight: bold; color: #2980b9; margin: 10px 0; }
+        .unit { font-size: 0.8em; color: #aaa; }
+
+        /* Kartu Umur Spesial */
+        .card-age { background: #27ae60; color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3); }
+        .card-age h3 { color: #e8f5e9; }
+        .card-age .value { color: white; font-size: 3em; }
+        .card-age .unit { color: #c8e6c9; }
+
+        /* Input Section */
+        .control-panel { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        input { padding: 10px; width: 60%; border: 1px solid #ddd; border-radius: 5px; font-size: 1em; }
+        button { padding: 10px 20px; background-color: #e67e22; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; font-weight: bold; transition: 0.3s; }
+        button:hover { background-color: #d35400; }
+        
+        .indicator { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: red; margin-right: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Dashboard Durian</h1>
+    <div class="status">
+        <span id="conn-status" class="indicator"></span> <span id="status-text">Terputus</span>
+    </div>
+
+    <!-- KARTU UMUR -->
+    <div class="card-age">
+        <h3>Umur Tanaman</h3>
+        <div class="value" id="val-umur">--</div>
+        <div class="unit">Tahun</div>
+    </div>
+
+    <!-- KARTU NPK -->
+    <div class="card-grid">
+        <div class="card">
+            <h3>Nitrogen</h3>
+            <div class="value" id="val-n">0</div>
+            <div class="unit">mg/kg</div>
+        </div>
+        <div class="card">
+            <h3>Phosphor</h3>
+            <div class="value" id="val-p">0</div>
+            <div class="unit">mg/kg</div>
+        </div>
+        <div class="card">
+            <h3>Kalium</h3>
+            <div class="value" id="val-k">0</div>
+            <div class="unit">mg/kg</div>
+        </div>
+    </div>
+
+    <!-- CONTROL INPUT -->
+    <div class="control-panel">
+        <h3>Atur Umur Tanaman</h3>
+        <p style="font-size: 0.8em; color: #777;">Masukkan umur baru untuk memperbarui data alat.</p>
+        <input type="number" id="input-umur" placeholder="Contoh: 5">
+        <button onclick="kirimUmur()">UPDATE</button>
+    </div>
+</div>
+
+<script>
+    // --- KONFIGURASI MQTT ---
+    const broker = "broker.emqx.io";
+    // [UPDATE] Menggunakan Port 8084 untuk WSS (Secure WebSocket) agar bisa jalan di HTTPS
+    const port = 8084; 
+    const clientID = "WebClient-" + parseInt(Math.random() * 100000);
+
+    // TOPIK (Harus sama persis dengan coding ESP32)
+    const topic_N = "faiz123/durian/N";
+    const topic_P = "faiz123/durian/P";
+    const topic_K = "faiz123/durian/K";
+    const topic_Umur = "faiz123/durian/umur";
+    const topic_SetUmur = "faiz123/durian/set_umur";
+
+    // Inisialisasi Client Paho MQTT
+    const client = new Paho.MQTT.Client(broker, port, clientID);
+
+    // Handler Koneksi
+    client.onConnectionLost = onConnectionLost;
+    client.onMessageArrived = onMessageArrived;
+
+    // Opsi Koneksi
+    const options = {
+        onSuccess: onConnect,
+        onFailure: onFail,
+        useSSL: true // [UPDATE] Wajib TRUE untuk koneksi aman (WSS) di halaman HTTPS
+    };
+
+    // Mulai Koneksi saat Halaman Dibuka
+    console.log("Menghubungkan ke MQTT Broker...");
+    client.connect(options);
+
+    // --- FUNGSI LOGIKA ---
+
+    function onConnect() {
+        console.log("Terhubung ke MQTT!");
+        document.getElementById("status-text").innerText = "Terhubung (Live)";
+        document.getElementById("status-text").style.color = "green";
+        document.getElementById("conn-status").style.backgroundColor = "green";
+
+        // Subscribe ke semua topik data
+        client.subscribe(topic_N);
+        client.subscribe(topic_P);
+        client.subscribe(topic_K);
+        client.subscribe(topic_Umur);
+    }
+
+    function onFail(responseObject) {
+        console.log("Gagal Koneksi: " + responseObject.errorMessage);
+        document.getElementById("status-text").innerText = "Gagal Koneksi - Refresh Halaman";
+    }
+
+    function onConnectionLost(responseObject) {
+        if (responseObject.errorCode !== 0) {
+            console.log("Koneksi Putus: " + responseObject.errorMessage);
+            document.getElementById("status-text").innerText = "Terputus...";
+            document.getElementById("conn-status").style.backgroundColor = "red";
+        }
+    }
+
+    // Saat Pesan Masuk dari ESP32
+    function onMessageArrived(message) {
+        const topic = message.destinationName;
+        const payload = message.payloadString;
+        console.log("Data Masuk [" + topic + "]: " + payload);
+
+        // Update Tampilan HTML sesuai topik
+        if(topic === topic_N) document.getElementById("val-n").innerText = payload;
+        if(topic === topic_P) document.getElementById("val-p").innerText = payload;
+        if(topic === topic_K) document.getElementById("val-k").innerText = payload;
+        if(topic === topic_Umur) document.getElementById("val-umur").innerText = payload;
+    }
+
+    // Fungsi Mengirim Perintah (Input Umur)
+    function kirimUmur() {
+        const nilai = document.getElementById("input-umur").value;
+        if(!nilai) { alert("Masukkan angka dulu!"); return; }
+
+        const message = new Paho.MQTT.Message(nilai);
+        message.destinationName = topic_SetUmur;
+        client.send(message);
+
+        alert("Perintah dikirim: Set Umur " + nilai + " Tahun");
+    }
+</script>
+
+</body>
+</html>
