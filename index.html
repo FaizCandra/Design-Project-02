@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monitoring Durian Realtime</title>
-    <!-- Library Paho MQTT (Wajib untuk Web MQTT) -->
+    <!-- Library Paho MQTT -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; text-align: center; margin: 0; padding: 20px; }
@@ -13,25 +13,80 @@
         .status { font-size: 0.9em; color: #888; margin-bottom: 20px; }
         
         /* Kartu Data */
-        .card-grid { display: flex; gap: 15px; justify-content: center; margin-bottom: 20px; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); flex: 1; min-width: 80px; }
+        .card-grid { display: flex; gap: 15px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); flex: 1; min-width: 100px; }
         .card h3 { margin: 0; font-size: 0.9em; color: #666; text-transform: uppercase; }
         .value { font-size: 2em; font-weight: bold; color: #2980b9; margin: 10px 0; }
         .unit { font-size: 0.8em; color: #aaa; }
 
         /* Kartu Umur Spesial */
-        .card-age { background: #27ae60; color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3); }
-        .card-age h3 { color: #e8f5e9; }
-        .card-age .value { color: white; font-size: 3em; }
-        .card-age .unit { color: #c8e6c9; }
+        .card-age { 
+            background: linear-gradient(135deg, #27ae60, #2ecc71); 
+            color: white; 
+            padding: 25px; 
+            border-radius: 12px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4); 
+        }
+        .card-age h3 { color: #e8f5e9; margin: 0 0 10px 0; font-size: 1.1em; opacity: 0.9; }
+        
+        /* Tampilan Umur */
+        .age-full-text {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: white;
+            line-height: 1.2;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .age-full-text span {
+            font-size: 0.6em; 
+            font-weight: normal;
+            opacity: 0.9;
+            margin-right: 5px;
+            margin-left: 2px;
+        }
 
         /* Input Section */
         .control-panel { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        input { padding: 10px; width: 60%; border: 1px solid #ddd; border-radius: 5px; font-size: 1em; }
-        button { padding: 10px 20px; background-color: #e67e22; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; font-weight: bold; transition: 0.3s; }
-        button:hover { background-color: #d35400; }
+        .input-group { display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; }
+        input { 
+            padding: 12px; 
+            width: 40%; 
+            border: 2px solid #eee; 
+            border-radius: 8px; 
+            font-size: 1em; 
+            text-align: center; 
+            transition: border-color 0.3s;
+        }
+        input:focus { border-color: #27ae60; outline: none; }
         
-        .indicator { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: red; margin-right: 5px; }
+        button { 
+            padding: 12px 20px; 
+            background-color: #e67e22; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 1em; 
+            font-weight: bold; 
+            transition: 0.3s; 
+            width: 100%; 
+            box-shadow: 0 4px 6px rgba(230, 126, 34, 0.2);
+        }
+        button:hover { background-color: #d35400; transform: translateY(-2px); }
+        button:active { transform: translateY(0); }
+
+        .indicator { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: #e74c3c; margin-right: 5px; transition: background 0.3s; }
+        
+        /* Pesan Feedback (Ganti Alert) */
+        #feedback-msg {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #27ae60;
+            min-height: 20px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
     </style>
 </head>
 <body>
@@ -39,14 +94,15 @@
 <div class="container">
     <h1>Dashboard Durian</h1>
     <div class="status">
-        <span id="conn-status" class="indicator"></span> <span id="status-text">Terputus</span>
+        <span id="conn-status" class="indicator"></span> <span id="status-text">Menghubungkan...</span>
     </div>
 
-    <!-- KARTU UMUR -->
+    <!-- KARTU UMUR (OUTPUT: "5 Tahun 355 Hari") -->
     <div class="card-age">
-        <h3>Umur Tanaman</h3>
-        <div class="value" id="val-umur">--</div>
-        <div class="unit">Tahun</div>
+        <h3>Umur Tanaman Saat Ini</h3>
+        <div class="age-full-text" id="display-umur">
+            -- <span>Tahun</span> -- <span>Hari</span>
+        </div>
     </div>
 
     <!-- KARTU NPK -->
@@ -68,56 +124,54 @@
         </div>
     </div>
 
-    <!-- CONTROL INPUT -->
+    <!-- CONTROL INPUT (INPUT TETAP 2 KOLOM) -->
     <div class="control-panel">
         <h3>Atur Umur Tanaman</h3>
-        <p style="font-size: 0.8em; color: #777;">Masukkan umur baru untuk memperbarui data alat.</p>
-        <input type="number" id="input-umur" placeholder="Contoh: 5">
-        <button onclick="kirimUmur()">UPDATE</button>
+        <p style="font-size: 0.8em; color: #777;">Masukkan umur saat ini untuk sinkronisasi alat.</p>
+        
+        <div class="input-group">
+            <input type="number" id="input-thn" placeholder="Tahun" min="0">
+            <input type="number" id="input-hari" placeholder="Hari" min="0" max="365">
+        </div>
+        
+        <button onclick="kirimUmur()">UPDATE DATA UMUR</button>
+        <div id="feedback-msg">Data berhasil dikirim!</div>
     </div>
 </div>
 
 <script>
     // --- KONFIGURASI MQTT ---
     const broker = "broker.emqx.io";
-    // [UPDATE] Menggunakan Port 8084 untuk WSS (Secure WebSocket) agar bisa jalan di HTTPS
-    const port = 8084; 
-    const clientID = "WebClient-" + parseInt(Math.random() * 100000);
+    const port = 8084; // Port WSS (Secure WebSocket)
+    const clientID = "WebDurian-" + parseInt(Math.random() * 100000);
 
-    // TOPIK (Harus sama persis dengan coding ESP32)
+    // TOPIK
     const topic_N = "faiz123/durian/N";
     const topic_P = "faiz123/durian/P";
     const topic_K = "faiz123/durian/K";
-    const topic_Umur = "faiz123/durian/umur";
-    const topic_SetUmur = "faiz123/durian/set_umur";
+    const topic_Umur = "faiz123/durian/umur"; // Menerima format "Tahun,Hari"
+    const topic_SetUmur = "faiz123/durian/set_umur"; // Mengirim format "Tahun,Hari"
 
-    // Inisialisasi Client Paho MQTT
     const client = new Paho.MQTT.Client(broker, port, clientID);
 
-    // Handler Koneksi
     client.onConnectionLost = onConnectionLost;
     client.onMessageArrived = onMessageArrived;
 
-    // Opsi Koneksi
     const options = {
         onSuccess: onConnect,
         onFailure: onFail,
-        useSSL: true // [UPDATE] Wajib TRUE untuk koneksi aman (WSS) di halaman HTTPS
+        useSSL: true // Wajib TRUE untuk Web
     };
 
-    // Mulai Koneksi saat Halaman Dibuka
     console.log("Menghubungkan ke MQTT Broker...");
     client.connect(options);
-
-    // --- FUNGSI LOGIKA ---
 
     function onConnect() {
         console.log("Terhubung ke MQTT!");
         document.getElementById("status-text").innerText = "Terhubung (Live)";
-        document.getElementById("status-text").style.color = "green";
-        document.getElementById("conn-status").style.backgroundColor = "green";
+        document.getElementById("status-text").style.color = "#27ae60";
+        document.getElementById("conn-status").style.backgroundColor = "#27ae60";
 
-        // Subscribe ke semua topik data
         client.subscribe(topic_N);
         client.subscribe(topic_P);
         client.subscribe(topic_K);
@@ -127,39 +181,75 @@
     function onFail(responseObject) {
         console.log("Gagal Koneksi: " + responseObject.errorMessage);
         document.getElementById("status-text").innerText = "Gagal Koneksi - Refresh Halaman";
+        document.getElementById("conn-status").style.backgroundColor = "#e74c3c";
     }
 
     function onConnectionLost(responseObject) {
         if (responseObject.errorCode !== 0) {
             console.log("Koneksi Putus: " + responseObject.errorMessage);
             document.getElementById("status-text").innerText = "Terputus...";
-            document.getElementById("conn-status").style.backgroundColor = "red";
+            document.getElementById("status-text").style.color = "#e74c3c";
+            document.getElementById("conn-status").style.backgroundColor = "#e74c3c";
         }
     }
 
-    // Saat Pesan Masuk dari ESP32
     function onMessageArrived(message) {
         const topic = message.destinationName;
         const payload = message.payloadString;
-        console.log("Data Masuk [" + topic + "]: " + payload);
-
-        // Update Tampilan HTML sesuai topik
+        
+        // Update NPK
         if(topic === topic_N) document.getElementById("val-n").innerText = payload;
         if(topic === topic_P) document.getElementById("val-p").innerText = payload;
         if(topic === topic_K) document.getElementById("val-k").innerText = payload;
-        if(topic === topic_Umur) document.getElementById("val-umur").innerText = payload;
+        
+        // Update UMUR (Logika Parser)
+        if(topic === topic_Umur) {
+            // Payload dari ESP32 contohnya: "5,355"
+            const parts = payload.split(","); 
+            const displayDiv = document.getElementById("display-umur");
+            
+            if(parts.length === 2) {
+                // Kita ubah koma menjadi tampilan kalimat yang cantik
+                // "5" -> "5 Tahun"
+                // "355" -> "355 Hari"
+                displayDiv.innerHTML = parts[0] + " <span>Tahun</span> " + parts[1] + " <span>Hari</span>";
+            } else {
+                // Jika format salah/lama, tampilkan apa adanya
+                displayDiv.innerText = payload;
+            }
+        }
     }
 
-    // Fungsi Mengirim Perintah (Input Umur)
+    // Fungsi Kirim
     function kirimUmur() {
-        const nilai = document.getElementById("input-umur").value;
-        if(!nilai) { alert("Masukkan angka dulu!"); return; }
+        let thn = document.getElementById("input-thn").value;
+        let hari = document.getElementById("input-hari").value;
+        const msgBox = document.getElementById("feedback-msg");
 
-        const message = new Paho.MQTT.Message(nilai);
-        message.destinationName = topic_SetUmur;
-        client.send(message);
+        if(thn === "") thn = "0";
+        if(hari === "") hari = "0";
 
-        alert("Perintah dikirim: Set Umur " + nilai + " Tahun");
+        // Gabungkan jadi string "Tahun,Hari" untuk dikirim ke ESP32
+        const dataKirim = thn + "," + hari;
+
+        try {
+            const message = new Paho.MQTT.Message(dataKirim);
+            message.destinationName = topic_SetUmur;
+            client.send(message);
+
+            // Tampilkan pesan sukses tanpa alert
+            msgBox.innerText = "Mengirim: " + thn + " Tahun " + hari + " Hari...";
+            msgBox.style.color = "#27ae60";
+            msgBox.style.opacity = "1";
+            
+            // Hilangkan pesan setelah 3 detik
+            setTimeout(() => { msgBox.style.opacity = "0"; }, 3000);
+
+        } catch (e) {
+            msgBox.innerText = "Gagal mengirim (Cek koneksi).";
+            msgBox.style.color = "#e74c3c";
+            msgBox.style.opacity = "1";
+        }
     }
 </script>
 
