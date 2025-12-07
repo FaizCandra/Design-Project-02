@@ -137,7 +137,7 @@
         <button class="btn-theme" onclick="toggleTheme()" id="theme-btn">🌙 Dark</button>
     </div>
 
-    <h1>Dashboard Durian 7-in-1</h1>
+    <h1>Dashboard Durian</h1>
     
     <div class="status">
         <span id="conn-status" class="indicator"></span> <span id="status-text">Menghubungkan...</span>
@@ -302,9 +302,9 @@
         data: {
             labels: [], 
             datasets: [
-                { label: 'Nitrogen (mg/kg)', data: [], borderColor: '#3498db', backgroundColor: 'rgba(52, 152, 219, 0.1)', tension: 0.3, fill: true },
-                { label: 'Phosphor (mg/kg)', data: [], borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', tension: 0.3, fill: true },
-                { label: 'Kalium (mg/kg)', data: [], borderColor: '#f1c40f', backgroundColor: 'rgba(241, 196, 15, 0.1)', tension: 0.3, fill: true }
+                { label: 'Nitrogen', data: [], borderColor: '#3498db', backgroundColor: 'rgba(52, 152, 219, 0.1)', tension: 0.3, fill: true },
+                { label: 'Phosphor', data: [], borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', tension: 0.3, fill: true },
+                { label: 'Kalium', data: [], borderColor: '#f1c40f', backgroundColor: 'rgba(241, 196, 15, 0.1)', tension: 0.3, fill: true }
             ]
         },
         options: { 
@@ -330,7 +330,7 @@
                     callbacks: {
                         label: function(context) {
                             let label = context.dataset.label || '';
-                            if (label) { label = label.replace(' (mg/kg)', ''); label += ': '; }
+                            if (label) { label += ': '; }
                             if (context.parsed.y !== null) { label += context.parsed.y + ' mg/kg'; }
                             return label;
                         }
