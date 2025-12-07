@@ -8,50 +8,135 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f6f9; text-align: center; margin: 0; padding: 20px; }
-        .container { max-width: 900px; margin: auto; }
-        h1 { color: #2c3e50; margin-bottom: 5px; }
-        .status { font-size: 0.9em; color: #888; margin-bottom: 20px; }
+        /* =========================================
+           1. CSS VARIABLES (Tema Warna)
+           ========================================= */
+        :root {
+            /* Warna LIGHT Mode (Default) */
+            --bg-body: #f4f6f9;
+            --bg-card: #ffffff;
+            --text-main: #2c3e50;
+            --text-sub: #888;
+            --shadow: rgba(0,0,0,0.05);
+            --border-input: #eee;
+            --chart-grid: #ddd;
+            --chart-text: #666;
+        }
+
+        [data-theme="dark"] {
+            /* Warna DARK Mode */
+            --bg-body: #1a1a2e;       /* Biru Gelap Malam */
+            --bg-card: #16213e;       /* Biru Navy */
+            --text-main: #e94560;     /* Aksen Pink/Merah atau Putih */
+            --text-sub: #a0a0a0;
+            --shadow: rgba(0,0,0,0.3);
+            --border-input: #303050;
+            --chart-grid: #444;       /* Garis grafik lebih gelap */
+            --chart-text: #ccc;       /* Tulisan grafik jadi putih */
+        }
+
+        /* Transisi halus saat ganti tema */
+        body, .card, .chart-container, .control-panel, input, h1, h3, .value {
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+        }
+
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background-color: var(--bg-body); 
+            color: var(--text-main);
+            text-align: center; margin: 0; padding: 20px; 
+        }
+
+        .container { max-width: 900px; margin: auto; position: relative; }
+        
+        h1 { color: var(--text-main); margin-bottom: 5px; }
+        
+        /* Tombol Toggle Theme */
+        .theme-switch-wrapper {
+            position: absolute; top: 0; right: 0;
+            display: flex; align-items: center;
+        }
+        .btn-theme {
+            background: none; border: 2px solid var(--text-main);
+            color: var(--text-main); padding: 5px 10px;
+            border-radius: 20px; cursor: pointer; font-weight: bold;
+        }
+        .btn-theme:hover { background: var(--text-main); color: var(--bg-body); }
+
+        .status { font-size: 0.9em; color: var(--text-sub); margin-bottom: 20px; }
         .indicator { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: #e74c3c; margin-right: 5px; }
         
-        /* Kartu Umur */
-        .card-age { background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4); }
+        /* Kartu Umur (Tetap Hijau agar Standout) */
+        .card-age { 
+            background: linear-gradient(135deg, #27ae60, #2ecc71); 
+            color: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; 
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2); 
+        }
         .card-age h3 { color: #e8f5e9; margin: 0; font-size: 1.1em; }
-        .age-full-text { font-size: 1.8em; font-weight: bold; margin-top: 10px; }
+        .age-full-text { font-size: 1.8em; font-weight: bold; margin-top: 10px; color: white !important; }
         .age-full-text span { font-size: 0.6em; font-weight: normal; margin: 0 5px; }
 
         /* Grid Kartu */
         .card-grid { display: flex; gap: 15px; justify-content: center; margin-bottom: 10px; flex-wrap: wrap; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); flex: 1; min-width: 100px; }
-        .card h3 { margin: 0; font-size: 0.9em; color: #666; text-transform: uppercase; }
+        
+        .card { 
+            background: var(--bg-card); 
+            padding: 20px; border-radius: 12px; 
+            box-shadow: 0 4px 15px var(--shadow); 
+            flex: 1; min-width: 100px; 
+        }
+        .card h3 { margin: 0; font-size: 0.9em; color: var(--text-sub); text-transform: uppercase; }
         .value { font-size: 1.8em; font-weight: bold; color: #2980b9; margin: 10px 0; }
-        .unit { font-size: 0.8em; color: #aaa; }
+        .unit { font-size: 0.8em; color: var(--text-sub); }
 
-        /* Warna Khusus Value */
+        /* Warna Khusus Value (Biar tetap terang di Dark Mode) */
         .val-moist { color: #3498db; }
         .val-temp { color: #e67e22; }
         .val-ph { color: #9b59b6; }
-        .val-npk { color: #2c3e50; }
+        .val-npk { color: var(--text-main); } /* Ikut warna tema utama */
 
         /* Grafik */
-        .chart-container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; position: relative; height: 400px; }
-        /* Perbaikan styling controls agar rapi */
+        .chart-container { 
+            background: var(--bg-card); 
+            padding: 20px; border-radius: 12px; 
+            box-shadow: 0 4px 15px var(--shadow); 
+            margin-bottom: 20px; position: relative; height: 500px; 
+        }
+        
         .chart-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .chart-controls h3 { margin: 0; text-align: left; }
-        .chart-controls select { padding: 6px; border-radius: 5px; border: 1px solid #ddd; cursor: pointer; margin-right: 5px; }
+        .chart-controls h3 { margin: 0; text-align: left; color: var(--text-main); }
+        .chart-controls select { 
+            padding: 6px; border-radius: 5px; 
+            border: 1px solid var(--border-input); 
+            background: var(--bg-body); color: var(--text-main);
+            cursor: pointer; margin-right: 5px; 
+        }
         .btn-refresh { background-color: #3498db; color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; }
-        .btn-refresh:hover { background-color: #2980b9; }
-
+        
         /* Input */
-        .control-panel { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .control-panel { 
+            background: var(--bg-card); 
+            padding: 20px; border-radius: 12px; 
+            box-shadow: 0 4px 15px var(--shadow); 
+        }
+        .control-panel h3 { color: var(--text-main); }
         .input-group { display: flex; gap: 10px; justify-content: center; margin-bottom: 10px; }
-        input { padding: 10px; width: 40%; border: 2px solid #eee; border-radius: 8px; text-align: center; }
+        input { 
+            padding: 10px; width: 40%; 
+            border: 2px solid var(--border-input); 
+            background: var(--bg-body); color: var(--text-main);
+            border-radius: 8px; text-align: center; 
+        }
         .btn-update { padding: 10px; width: 100%; background: #e67e22; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <div class="theme-switch-wrapper">
+        <button class="btn-theme" onclick="toggleTheme()" id="theme-btn">🌙 Dark</button>
+    </div>
+
     <h1>Dashboard Durian 7-in-1</h1>
     
     <div class="status">
@@ -106,9 +191,8 @@
     <div class="chart-container">
         <div class="chart-controls">
             <h3>Grafik Nutrisi (NPK)</h3>
-            <!-- DROPDOWN PILIHAN JUMLAH DATA -->
             <div>
-                <label for="dataLimit" style="font-size:0.9em; color:#666">Tampilkan:</label>
+                <label for="dataLimit" style="font-size:0.9em; color:var(--text-sub)">Tampilkan:</label>
                 <select id="dataLimit" onchange="fetchHistory()">
                     <option value="20">20 Data</option>
                     <option value="50" selected>50 Data</option>
@@ -133,7 +217,62 @@
 </div>
 
 <script>
-    // --- KONFIGURASI ---
+    // --- 0. LOGIKA THEME (DARK/LIGHT) ---
+    // Cek apakah user pernah menyimpan preferensi tema sebelumnya
+    const currentTheme = localStorage.getItem('theme');
+    const themeBtn = document.getElementById('theme-btn');
+    
+    // Set tema awal saat load
+    if (currentTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        themeBtn.innerText = "☀️ Light";
+    }
+
+    function toggleTheme() {
+        const current = document.documentElement.getAttribute('data-theme');
+        let targetTheme = 'light';
+
+        if (current === 'dark') {
+            targetTheme = 'light';
+            themeBtn.innerText = "🌙 Dark";
+            document.documentElement.setAttribute('data-theme', 'light');
+        } else {
+            targetTheme = 'dark';
+            themeBtn.innerText = "☀️ Light";
+            document.documentElement.setAttribute('data-theme', 'dark');
+        }
+        
+        // Simpan ke memory browser
+        localStorage.setItem('theme', targetTheme);
+        
+        // Update Warna Grafik agar sesuai tema
+        updateChartTheme(targetTheme);
+    }
+
+    // Fungsi khusus untuk mengubah warna Grid & Text Grafik
+    function updateChartTheme(theme) {
+        if (!myChart) return;
+
+        const textColor = theme === 'dark' ? '#cccccc' : '#666666';
+        const gridColor = theme === 'dark' ? '#444444' : '#dddddd';
+
+        // Update Axis X & Y
+        myChart.options.scales.x.ticks.color = textColor;
+        myChart.options.scales.x.grid.color = gridColor;
+        myChart.options.scales.y.ticks.color = textColor;
+        myChart.options.scales.y.grid.color = gridColor;
+        myChart.options.scales.y.title.color = textColor;
+        
+        // Update Judul Axis
+        myChart.options.scales.x.title.color = textColor;
+        
+        // Update Legend
+        myChart.options.plugins.legend.labels.color = textColor;
+
+        myChart.update();
+    }
+
+    // --- 1. KONFIGURASI ---
     const SHEET_URL = "https://script.google.com/macros/s/AKfycbzOA1xZ3WpEuxfwNmZ-yaFZWdU5uvPZ1GaJALKIuipsQUIh9dcHDgkboPy9DS7T0ScjhQ/exec";
     const broker = "broker.emqx.io";
     const port = 8084;
@@ -152,17 +291,54 @@
 
     // --- CHART SETUP ---
     const ctx = document.getElementById('npkChart').getContext('2d');
+    
+    // Tentukan warna awal grafik berdasarkan tema saat ini
+    const initTheme = localStorage.getItem('theme') || 'light';
+    const initTextColor = initTheme === 'dark' ? '#cccccc' : '#666666';
+    const initGridColor = initTheme === 'dark' ? '#444444' : '#dddddd';
+
     const myChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: [], 
             datasets: [
-                { label: 'Nitrogen', data: [], borderColor: '#2c3e50', backgroundColor: 'rgba(44, 62, 80, 0.1)', tension: 0.3, fill: true },
-                { label: 'Phosphor', data: [], borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', tension: 0.3, fill: true },
-                { label: 'Kalium', data: [], borderColor: '#f1c40f', backgroundColor: 'rgba(241, 196, 15, 0.1)', tension: 0.3, fill: true }
+                { label: 'Nitrogen (mg/kg)', data: [], borderColor: '#3498db', backgroundColor: 'rgba(52, 152, 219, 0.1)', tension: 0.3, fill: true },
+                { label: 'Phosphor (mg/kg)', data: [], borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', tension: 0.3, fill: true },
+                { label: 'Kalium (mg/kg)', data: [], borderColor: '#f1c40f', backgroundColor: 'rgba(241, 196, 15, 0.1)', tension: 0.3, fill: true }
             ]
         },
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false,
+            layout: { padding: { bottom: 20 } },
+            scales: { 
+                y: { 
+                    beginAtZero: true,
+                    grid: { color: initGridColor },
+                    ticks: { color: initTextColor },
+                    title: { display: true, text: 'Konsentrasi (mg/kg)', color: initTextColor, font: { size: 14, weight: 'bold' } }
+                },
+                x: {
+                    grid: { color: initGridColor },
+                    ticks: { color: initTextColor, autoSkip: true, maxRotation: 45, minRotation: 45 },
+                    title: { display: true, text: 'Waktu', color: initTextColor }
+                }
+            },
+            plugins: {
+                legend: { labels: { color: initTextColor } },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) { label = label.replace(' (mg/kg)', ''); label += ': '; }
+                            if (context.parsed.y !== null) { label += context.parsed.y + ' mg/kg'; }
+                            return label;
+                        }
+                    }
+                }
+            },
+            interaction: { mode: 'index', intersect: false }
+        }
     });
 
     // --- MQTT SETUP ---
@@ -180,9 +356,8 @@
 
     function onConnect() {
         document.getElementById("status-text").innerText = "Terhubung (Live)";
-        document.getElementById("status-text").style.color = "green";
-        document.getElementById("conn-status").style.backgroundColor = "green";
-        // Subscribe semua topik
+        document.getElementById("status-text").style.color = "#27ae60"; // Hijau tetap
+        document.getElementById("conn-status").style.backgroundColor = "#27ae60";
         Object.values(topics).forEach(t => { if(t !== topics.setUmur) client.subscribe(t); });
     }
 
@@ -212,13 +387,11 @@
 
     // --- GOOGLE SHEETS FETCH ---
     async function fetchHistory() {
-        // [UPDATE] Mengambil nilai limit dari dropdown
         const limit = document.getElementById("dataLimit").value;
         const btn = document.querySelector(".btn-refresh");
-        btn.innerText = "⏳"; // Ikon loading singkat
+        btn.innerText = "⏳ Loading...";
         
         try {
-            // [UPDATE] URL sekarang menggunakan parameter limit yang dinamis
             const res = await fetch(SHEET_URL + "?mode=read&limit=" + limit);
             const json = await res.json();
             const labels = [], dN = [], dP = [], dK = [];
